@@ -4,6 +4,8 @@ import urllib.parse
 import json
 import difflib
 import re
+import time
+import datetime
 
 with open('access_token', 'r') as f:
 	ACCESS_TOKEN = f.read().strip()
@@ -24,6 +26,12 @@ try:
 except FileNotFoundError:
 	LATEST_CONTENTS = ''
 
+try:
+	with open('access_token_expires', 'r') as f:
+		EXPIRES = int(f.read()) # as UNIX timestamp
+except	FileNotFoundError:
+	EXPIRES = 0
+
 def fetch_url(url):
 	pr = urllib.parse.urlparse(url)
 	c = {'': http.client.HTTPConnection, 'http': http.client.HTTPConnection, 'https': http.client.HTTPSConnection}.get(pr.scheme.lower(), None)(pr.netloc)
@@ -36,6 +44,11 @@ def publish(access_token, target_id, message='', link=''):
 	return c.getresponse().read().decode()
 
 sanitize = lambda x: re.sub(r'(\s)+', r'\1', re.sub(r'<[^>]+>', '\n', x)).strip()
+
+if 0 < EXPIRES - time.time() < 86400*3: # 3 days
+	message = 'Your access token (which expires at {}) has to be updated.'.format(datetime.datetime.fromtimestamp(EXPIRES))
+	print(message)
+	publish(ACCESS_TOKEN, TARGET_ID, message, 'https://developers.facebook.com/tools/accesstoken/')
 
 new_contents = fetch_url(TARGET_URL)
 
