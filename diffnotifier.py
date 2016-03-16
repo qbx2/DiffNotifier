@@ -8,6 +8,7 @@ import time
 import datetime
 import json
 import pickle
+import gzip
 
 def read_file_with_default(filename, default=''):
 	try:
@@ -20,9 +21,10 @@ USER_ACCESS_TOKEN = read_file_with_default('user_access_token.txt').strip()
 APP_ACCESS_TOKEN = read_file_with_default('app_access_token.txt').strip()
 EXPIRES = int(read_file_with_default('user_access_token_expires.txt', 0)) # UNIX timestamp
 TARGET_LIST = json.loads(read_file_with_default('target_list.json', '[]').strip()) # [[target_id, target_url], ...]
+LATEST_CONTENTS_LIST_FILENAME = 'latest_contents_list.pkl.gz'
 
 try:
-	with open('latest_contents_list.pkl', 'rb') as f:
+	with gzip.open(LATEST_CONTENTS_LIST_FILENAME, 'rb') as f:
 		LATEST_CONTENTS_LIST = pickle.load(f) # {target_url: latest_contents}
 except (FileNotFoundError, EOFError):
 	LATEST_CONTENTS_LIST = {}
@@ -83,7 +85,7 @@ if 0 < EXPIRES - time.time() < 86400*3: # 3 days
 for target_id, target_url, *optional_params in TARGET_LIST:
 	new_contents = fetch_url(target_url, *optional_params)
 
-	if len(LATEST_CONTENTS_LIST.get(target_url, '')) == 0:
+	if target_url not in LATEST_CONTENTS_LIST:
 		LATEST_CONTENTS_LIST[target_url] = new_contents
 		continue
 
@@ -112,5 +114,5 @@ for target_id, target_url, *optional_params in TARGET_LIST:
 		finally:
 			LATEST_CONTENTS_LIST[target_url] = new_contents
 
-with open('latest_contents_list.pkl', 'wb') as f:
+with gzip.open(LATEST_CONTENTS_LIST_FILENAME, 'wb') as f:
 	pickle.dump(LATEST_CONTENTS_LIST, f, protocol=pickle.HIGHEST_PROTOCOL)
