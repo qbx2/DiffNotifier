@@ -20,8 +20,8 @@ class CanvasHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 		self.send_header('Content-Type','text/html')
 
 		buf = io.BytesIO()
+		request_uri = pq.get('redirect_uri', ['http://www.facebook.com/'])[0]
 
-		request_uri = pq.get('redirect_uri', [''])[0]
 		if len(request_uri):
 			buf.write("<html><body><script>top.location.href = {};</script></body></html>".format(repr(request_uri)).encode())
 		
