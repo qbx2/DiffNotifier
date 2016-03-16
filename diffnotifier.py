@@ -7,6 +7,7 @@ import re
 import time
 import datetime
 import json
+import pickle
 
 def read_file_with_default(filename, default=''):
 	try:
@@ -15,23 +16,29 @@ def read_file_with_default(filename, default=''):
 	except FileNotFoundError:
 		return default
 
-USER_ACCESS_TOKEN = read_file_with_default('user_access_token').strip()
-APP_ACCESS_TOKEN = read_file_with_default('app_access_token').strip()
-EXPIRES = int(read_file_with_default('user_access_token_expires', 0)) # UNIX timestamp
-TARGET_ID = read_file_with_default('target_id').strip()
-TARGET_URL = read_file_with_default('target_url').strip()
-LATEST_CONTENTS = read_file_with_default('latest_contents', '')
+USER_ACCESS_TOKEN = read_file_with_default('user_access_token.txt').strip()
+APP_ACCESS_TOKEN = read_file_with_default('app_access_token.txt').strip()
+EXPIRES = int(read_file_with_default('user_access_token_expires.txt', 0)) # UNIX timestamp
+TARGET_LIST = json.loads(read_file_with_default('target_list.json', '[]').strip()) # [[target_id, target_url], ...]
+
+try:
+	with open('latest_contents_list.pkl', 'rb') as f:
+		LATEST_CONTENTS_LIST = pickle.load(f) # {target_url: latest_contents}
+except (FileNotFoundError, EOFError):
+	LATEST_CONTENTS_LIST = {}
+
 GRAPH_API_HOST = 'graph.facebook.com'
 API_VERSION = 'v2.5'
 
-def fetch_url(url):
-	if not len(url):
+def fetch_url(url, encoding='utf-8'):
+	if len(url) == 0:
 		return
 
+	print('Fetching from {} ...'.format(url))
 	pr = urllib.parse.urlparse(url)
 	c = {'': http.client.HTTPConnection, 'http': http.client.HTTPConnection, 'https': http.client.HTTPSConnection}.get(pr.scheme.lower(), None)(pr.netloc)
 	c.request('GET', pr.path, pr.query)
-	return c.getresponse().read().decode()
+	return c.getresponse().read().decode(encoding)
 
 def publish(access_token, target_id, message='', link=''):
 	if not access_token or not target_id:
@@ -73,27 +80,37 @@ if 0 < EXPIRES - time.time() < 86400*3: # 3 days
 	print(message)
 	notify(APP_ACCESS_TOKEN, read(USER_ACCESS_TOKEN)['id'], message, '?redirect_uri={}'.format(urllib.parse.quote('https://developers.facebook.com/tools/accesstoken/')))
 
-new_contents = fetch_url(TARGET_URL)
+for target_id, target_url, *optional_params in TARGET_LIST:
+	new_contents = fetch_url(target_url, *optional_params)
 
-if not len(LATEST_CONTENTS):
-	with open('latest_contents', 'w') as f:
-		f.write(new_contents)
-	exit()
+	if len(LATEST_CONTENTS_LIST.get(target_url, '')) == 0:
+		LATEST_CONTENTS_LIST[target_url] = new_contents
+		continue
 
-# differ
-diff = list(difflib.unified_diff(sanitize(LATEST_CONTENTS), sanitize(new_contents)))[2:]
-pdiff = ''.join(map(lambda x:x[1:], filter(lambda x:x.startswith('+'),diff))).strip()
-mdiff = ''.join(map(lambda x:x[1:], filter(lambda x:x.startswith('-'),diff))).strip()
+	# differ
+	diff = list(difflib.unified_diff(sanitize(LATEST_CONTENTS_LIST[target_url]), sanitize(new_contents)))[2:]
+	pdiff = ''.join(map(lambda x:x[1:], filter(lambda x:x.startswith('+'),diff))).strip()
+	mdiff = ''.join(map(lambda x:x[1:], filter(lambda x:x.startswith('-'),diff))).strip()
 
-if len(pdiff) or len(mdiff):
-	summary = 'added:\n{}\n\ndeleted:\n{}\n'.format(pdiff, mdiff)
-	print(summary)
+	summary = []
 
-	# publish & notify
-	message = 'New diff has been notified to : {}'.format(read(USER_ACCESS_TOKEN, TARGET_ID)['name'])
-	ret = publish(USER_ACCESS_TOKEN, TARGET_ID, summary, TARGET_URL)
-	try:		
-		notify(APP_ACCESS_TOKEN, read(USER_ACCESS_TOKEN)['id'], message, '?redirect_uri={}'.format(urllib.parse.quote('https://www.facebook.com/{}'.format(ret['id']))))
-	finally:
-		with open('latest_contents', 'w') as f:
-			f.write(new_contents)
+	if len(pdiff):
+		summary.append('Added:\n{}\n'.format(pdiff))
+
+	if len(mdiff):
+		summary.append('Deleted:\n{}\n'.format(mdiff))
+
+	if len(summary):
+		summary = '\n'.join(summary)
+		print(summary)
+
+		# publish & notify
+		message = 'New diff has been notified to : {}'.format(read(USER_ACCESS_TOKEN, target_id)['name'])
+		ret = publish(USER_ACCESS_TOKEN, target_id, summary, target_url)
+		try:
+			notify(APP_ACCESS_TOKEN, read(USER_ACCESS_TOKEN)['id'], message, '?redirect_uri={}'.format(urllib.parse.quote('https://www.facebook.com/{}'.format(ret['id']))))
+		finally:
+			LATEST_CONTENTS_LIST[target_url] = new_contents
+
+with open('latest_contents_list.pkl', 'wb') as f:
+	pickle.dump(LATEST_CONTENTS_LIST, f, protocol=pickle.HIGHEST_PROTOCOL)
