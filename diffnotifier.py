@@ -75,7 +75,7 @@ def read(access_token, identifier='me', fields=''):
 		raise Exception(ret)
 	return ret
 
-sanitize = lambda x: re.sub(r'(\s){2,}', r'\n', re.sub(r'<[^>]+>', r'\n', x)).strip()
+sanitize = lambda x: re.sub(r'(\s){2,}', r'\n', re.sub(r'<[^>]+>', r'\n', re.sub(r'<script.*?>.*?<\/script>', r'\n', x, flags=re.S))).strip()
 
 if 0 < EXPIRES - time.time() < 86400*3: # 3 days
 	message = 'Your access token (which expires at {}) has to be updated.'.format(datetime.datetime.fromtimestamp(EXPIRES))
