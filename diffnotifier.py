@@ -76,7 +76,10 @@ def read(access_token, identifier='me', fields=''):
 		raise Exception(ret)
 	return ret
 
-sanitize = lambda x:html.unescape(re.sub(r'(\s){2,}', r'\n', re.sub(r'<[^>]+>', r'\n', re.sub(r'<script.*?>.*?<\/script>', r'\n', x, flags=re.S))).strip())
+def sanitize(s, regex_filter_list=[]):
+	for regex_filter in regex_filter_list:
+		s = re.sub(regex_filter, r'\n', s, flags=re.S)
+	return html.unescape(re.sub(r'(\s){2,}', r'\n', re.sub(r'<[^>]+>', r'\n', s)).strip())
 
 if 0 < EXPIRES - time.time() < 86400*3: # 3 days
 	message = 'Your access token (which expires at {}) has to be updated.'.format(datetime.datetime.fromtimestamp(EXPIRES))
@@ -84,14 +87,21 @@ if 0 < EXPIRES - time.time() < 86400*3: # 3 days
 	notify(APP_ACCESS_TOKEN, read(USER_ACCESS_TOKEN)['id'], message, '?redirect_uri={}'.format(urllib.parse.quote('https://developers.facebook.com/tools/accesstoken/')))
 
 for target_id, target_url, *optional_params in TARGET_LIST:
-	new_contents = fetch_url(target_url, *optional_params)
+	if len(optional_params):
+		encoding = optional_params[0]
+	else:
+		encoding = 'utf-8'
+
+	new_contents = fetch_url(target_url, encoding)
 
 	if target_url not in LATEST_CONTENTS_LIST:
 		LATEST_CONTENTS_LIST[target_url] = new_contents
 		continue
 
+	regex_filter_list = optional_params[1:]
+
 	# differ
-	diff = list(difflib.unified_diff(sanitize(LATEST_CONTENTS_LIST[target_url]), sanitize(new_contents)))[2:]
+	diff = list(difflib.unified_diff(sanitize(LATEST_CONTENTS_LIST[target_url], regex_filter_list), sanitize(new_contents, regex_filter_list)))[2:]
 	pdiff = ''.join(map(lambda x:x[1:], filter(lambda x:x.startswith('+'),diff))).strip()
 	mdiff = ''.join(map(lambda x:x[1:], filter(lambda x:x.startswith('-'),diff))).strip()
 
