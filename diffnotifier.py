@@ -10,6 +10,7 @@ import json
 import pickle
 import gzip
 import html
+import sys
 
 def read_file_with_default(filename, default=''):
 	try:
@@ -80,6 +81,12 @@ def sanitize(s, regex_filter_list=[]):
 	for regex_filter in regex_filter_list:
 		s = re.sub(regex_filter, r'\n', s, flags=re.S)
 	return html.unescape(re.sub(r'(\s){2,}', r'\n', re.sub(r'<[^>]+>', r'\n', s)).strip())
+
+if len(sys.argv) > 1 and sys.argv[1] == 'test':
+        print(read(USER_ACCESS_TOKEN))
+        print(notify(APP_ACCESS_TOKEN, read(USER_ACCESS_TOKEN)['id'], 'notify_test'))
+        print(publish(USER_ACCESS_TOKEN, 'me', 'publish_test'))
+        exit()
 
 if 0 < EXPIRES - time.time() < 86400*3: # 3 days
 	message = 'Your access token (which expires at {}) has to be updated.'.format(datetime.datetime.fromtimestamp(EXPIRES))
