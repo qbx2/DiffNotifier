@@ -80,7 +80,7 @@ def read(access_token, identifier='me', fields=''):
 def sanitize(s, regex_filter_list=[]):
 	for regex_filter in regex_filter_list:
 		s = re.sub(regex_filter, r'\n', s, flags=re.S)
-	return html.unescape(re.sub(r'(\s){2,}', r'\n', re.sub(r'<[^>]+>', r'\n', s)).strip())
+	return re.sub(r'(\s){2,}', r'\n', re.sub(r'\xa0+', ' ', html.unescape(re.sub(r'<[^>]+>', r'\n', s)))).strip()
 
 if len(sys.argv) > 1 and sys.argv[1] == 'test':
         print(read(USER_ACCESS_TOKEN))
