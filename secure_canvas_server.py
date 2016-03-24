@@ -20,11 +20,13 @@ class CanvasHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 		self.send_header('Content-Type','text/html')
 
 		buf = io.BytesIO()
-		request_uri = pq.get('redirect_uri', ['http://www.facebook.com/'])[0]
+		request_uri = pq.get('redirect_uri', [''])[0]
 
 		if len(request_uri):
 			buf.write("<html><body><script>top.location.href = {};</script></body></html>".format(repr(request_uri)).encode())
-		
+		else:
+			buf.write("<html><body><script>if(confirm('Move to the project page?'))top.location.href = {};</script></body></html>".format(repr('https://github.com/qbx2/DiffNotifier/')).encode())
+
 		buf.seek(0)
 		buf = buf.read()
 		self.send_header('Content-Length',len(buf))
