@@ -38,7 +38,7 @@ class CanvasHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
 BIND_ADDRESS = ('', 4443)
 httpd = ThreadedHTTPServer(BIND_ADDRESS, CanvasHTTPRequestHandler)
-httpd.socket = ssl.wrap_socket(httpd.socket, certfile='./server.pem', server_side=True)
+httpd.socket = ssl.wrap_socket(httpd.socket, certfile='./fullchain.pem', keyfile='./privkey.pem', server_side=True)
 
 print('Server is running at {}'.format(':'.join(map(str,BIND_ADDRESS))))
 httpd.serve_forever()

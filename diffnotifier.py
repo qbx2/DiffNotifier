@@ -41,8 +41,9 @@ def fetch_url(url, encoding='utf-8'):
 	print('Fetching from {} ...'.format(url))
 	pr = urllib.parse.urlparse(url)
 	c = {'': http.client.HTTPConnection, 'http': http.client.HTTPConnection, 'https': http.client.HTTPSConnection}.get(pr.scheme.lower(), None)(pr.netloc)
-	c.request('GET', pr.path, pr.query)
-	return c.getresponse().read().decode(encoding)
+	c.request('GET', pr.path + '?' + pr.query)
+	r = c.getresponse()
+	return (r.status, r.read().decode(encoding))
 
 def publish(access_token, target_id, message='', link=''):
 	if not access_token or not target_id:
@@ -99,7 +100,7 @@ for target_id, target_url, *optional_params in TARGET_LIST:
 	else:
 		encoding = 'utf-8'
 
-	new_contents = fetch_url(target_url, encoding)
+	status_code, new_contents = fetch_url(target_url, encoding)
 
 	if target_url not in LATEST_CONTENTS_LIST:
 		LATEST_CONTENTS_LIST[target_url] = new_contents
@@ -122,15 +123,17 @@ for target_id, target_url, *optional_params in TARGET_LIST:
 
 	if len(summary):
 		summary = '\n'.join(summary)
-		print(summary)
+		print(str(time.time()) + '\n\n' + summary)
+
+		if status_code != 200:
+			continue
 
 		# publish & notify
-		message = 'New diff has been notified to : {}'.format(read(USER_ACCESS_TOKEN, target_id)['name'])
 		ret = publish(USER_ACCESS_TOKEN, target_id, summary, target_url)
-		try:
-			notify(APP_ACCESS_TOKEN, read(USER_ACCESS_TOKEN)['id'], message, '?redirect_uri={}'.format(urllib.parse.quote('https://www.facebook.com/{}'.format(ret['id']))))
-		finally:
-			LATEST_CONTENTS_LIST[target_url] = new_contents
+		LATEST_CONTENTS_LIST[target_url] = new_contents
 
-with gzip.open(LATEST_CONTENTS_LIST_FILENAME, 'wb') as f:
-	pickle.dump(LATEST_CONTENTS_LIST, f, protocol=pickle.HIGHEST_PROTOCOL)
+		with gzip.open(LATEST_CONTENTS_LIST_FILENAME, 'wb') as f:
+			pickle.dump(LATEST_CONTENTS_LIST, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+		message = 'New diff has been notified to : {}'.format(read(USER_ACCESS_TOKEN, target_id)['name'])
+		notify(APP_ACCESS_TOKEN, read(USER_ACCESS_TOKEN)['id'], message, '?redirect_uri={}'.format(urllib.parse.quote('https://www.facebook.com/{}'.format(ret['id']))))
