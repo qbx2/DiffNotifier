@@ -102,9 +102,10 @@ for target_id, target_url, *optional_params in TARGET_LIST:
 
 	status_code, new_contents = fetch_url(target_url, encoding)
 
-	if target_url not in LATEST_CONTENTS_LIST:
-		LATEST_CONTENTS_LIST[target_url] = new_contents
-		continue
+	LATEST_CONTENTS_LIST[target_url] = new_contents
+
+	with gzip.open(LATEST_CONTENTS_LIST_FILENAME, 'wb') as f:
+		pickle.dump(LATEST_CONTENTS_LIST, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 	regex_filter_list = optional_params[1:]
 
@@ -130,10 +131,5 @@ for target_id, target_url, *optional_params in TARGET_LIST:
 
 		# publish & notify
 		ret = publish(USER_ACCESS_TOKEN, target_id, summary, target_url)
-		LATEST_CONTENTS_LIST[target_url] = new_contents
-
-		with gzip.open(LATEST_CONTENTS_LIST_FILENAME, 'wb') as f:
-			pickle.dump(LATEST_CONTENTS_LIST, f, protocol=pickle.HIGHEST_PROTOCOL)
-
 		message = 'New diff has been notified to : {}'.format(read(USER_ACCESS_TOKEN, target_id)['name'])
 		notify(APP_ACCESS_TOKEN, read(USER_ACCESS_TOKEN)['id'], message, '?redirect_uri={}'.format(urllib.parse.quote('https://www.facebook.com/{}'.format(ret['id']))))
