@@ -32,13 +32,12 @@ except (FileNotFoundError, EOFError):
 	LATEST_CONTENTS_LIST = {}
 
 GRAPH_API_HOST = 'graph.facebook.com'
-API_VERSION = 'v2.5'
+API_VERSION = 'v2.6'
 
 def fetch_url(url, encoding='utf-8'):
 	if len(url) == 0:
 		return
 
-	print('Fetching from {} ...'.format(url))
 	pr = urllib.parse.urlparse(url)
 	c = {'': http.client.HTTPConnection, 'http': http.client.HTTPConnection, 'https': http.client.HTTPSConnection}.get(pr.scheme.lower(), None)(pr.netloc)
 	c.request('GET', pr.path + '?' + pr.query)
@@ -100,8 +99,14 @@ for target_id, target_url, *optional_params in TARGET_LIST:
 	else:
 		encoding = 'utf-8'
 
-	status_code, new_contents = fetch_url(target_url, encoding)
+	try:
+		print(target_url)
+		status_code, new_contents = fetch_url(target_url, encoding)
+	except Exception as e:
+		print(e, 'while fetching url from', target_url)
+		continue
 
+	old_contents = LATEST_CONTENTS_LIST[target_url]
 	LATEST_CONTENTS_LIST[target_url] = new_contents
 
 	with gzip.open(LATEST_CONTENTS_LIST_FILENAME, 'wb') as f:
@@ -110,7 +115,7 @@ for target_id, target_url, *optional_params in TARGET_LIST:
 	regex_filter_list = optional_params[1:]
 
 	# differ
-	diff = list(difflib.unified_diff(sanitize(LATEST_CONTENTS_LIST[target_url], regex_filter_list), sanitize(new_contents, regex_filter_list)))[2:]
+	diff = list(difflib.unified_diff(sanitize(old_contents, regex_filter_list), sanitize(new_contents, regex_filter_list)))[2:]
 	pdiff = ''.join(map(lambda x:x[1:], filter(lambda x:x.startswith('+'),diff))).strip()
 	mdiff = ''.join(map(lambda x:x[1:], filter(lambda x:x.startswith('-'),diff))).strip()
 
