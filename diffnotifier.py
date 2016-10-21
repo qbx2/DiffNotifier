@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import traceback
 import http.client
 import urllib.parse
 import json
@@ -106,7 +107,7 @@ for target_id, target_url, *optional_params in TARGET_LIST:
 		print(e, 'while fetching url from', target_url)
 		continue
 
-	old_contents = LATEST_CONTENTS_LIST[target_url]
+	old_contents = LATEST_CONTENTS_LIST.get(target_url, '')
 	LATEST_CONTENTS_LIST[target_url] = new_contents
 
 	with gzip.open(LATEST_CONTENTS_LIST_FILENAME, 'wb') as f:

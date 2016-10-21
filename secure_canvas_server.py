@@ -18,6 +18,7 @@ class CanvasHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
 		self.send_response(200)
 		self.send_header('Content-Type','text/html')
+		self.send_header('Connection', 'close')
 
 		buf = io.BytesIO()
 		request_uri = pq.get('redirect_uri', [''])[0]
