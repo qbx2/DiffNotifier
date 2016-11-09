@@ -107,6 +107,9 @@ for target_id, target_url, *optional_params in TARGET_LIST:
 		print(e, 'while fetching url from', target_url)
 		continue
 
+	if status_code != 200:
+		continue
+
 	old_contents = LATEST_CONTENTS_LIST.get(target_url, '')
 	LATEST_CONTENTS_LIST[target_url] = new_contents
 
@@ -131,9 +134,6 @@ for target_id, target_url, *optional_params in TARGET_LIST:
 	if len(summary):
 		summary = '\n'.join(summary)
 		print(str(time.time()) + '\n\n' + summary)
-
-		if status_code != 200:
-			continue
 
 		# publish & notify
 		ret = publish(USER_ACCESS_TOKEN, target_id, summary, target_url)
