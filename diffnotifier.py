@@ -34,8 +34,8 @@ FCM_KEY = settings.FCM_KEY
 
 GRAPH_API_HOST = 'graph.facebook.com'
 API_VERSION = 'v2.6'
-
 FCM_API_HOST = 'fcm.googleapis.com'
+DIFFNOTIFIER_HOST = 'diffnotifier.peacema.kr:8002'
 
 def fetch_url(r, encoding='utf-8'):
 	if len(r.url) == 0:
@@ -177,7 +177,9 @@ def update_target(t, old_contents, new_contents):
 
             if target_id:
                 # publish & notify
-                ret = publish(USER_ACCESS_TOKEN, target_id, summary, t.request.url)
+		#link = t.request.url
+                link = 'http://{}/noti/{}/?link={}'.format(DIFFNOTIFIER_HOST, noti.id, urllib.parse.quote(t.request.url))
+                ret = publish(USER_ACCESS_TOKEN, target_id, summary, link)
 
                 message = 'New diff has been notified to : {}'.format(read(USER_ACCESS_TOKEN, target_id)['name'])
                 notify(APP_ACCESS_TOKEN, read(USER_ACCESS_TOKEN)['id'], message, '?redirect_uri={}'.format(urllib.parse.quote('https://www.facebook.com/{}'.format(ret['id']))))
