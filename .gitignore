@@ -5,3 +5,4 @@ target*
 *.log
 __pycache__
 letsencrypt
+data
